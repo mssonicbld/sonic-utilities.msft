@@ -2101,7 +2101,16 @@ def load_minigraph(db, no_service_restart, traffic_shift_away, override_config, 
     # get the device type
     device_type = _get_device_type()
     if device_type != 'MgmtToRRouter' and device_type != 'MgmtTsToR' and device_type != 'BmcMgmtToRRouter' and device_type != 'EPMS':
-        clicommon.run_command(['pfcwd', 'start_default'], display_cmd=True)
+        # default behavior to call pfcwd start_default for all platforms
+        default_pfcwd_status = 'enable'
+        if override_config and config_to_check:
+            # If pfcwd is disabled in the golden config, skip starting pfcwd
+            # This is needed for platform which doesn't support lossless traffic.
+            override_metadata = config_to_check.get('DEVICE_METADATA', {}).get('localhost', {})
+            if 'default_pfcwd_status' in override_metadata:
+                default_pfcwd_status = override_metadata['default_pfcwd_status'].lower()
+        if default_pfcwd_status == 'enable':
+            clicommon.run_command(['pfcwd', 'start_default'], display_cmd=True)
 
     # Write latest db version string into db
     db_migrator = '/usr/local/bin/db_migrator.py'
@@ -7456,6 +7465,7 @@ def ecn(profile, rmax, rmin, ymax, ymin, gmax, gmin, rdrop, ydrop, gdrop, verbos
 @click.option('-p', metavar='<profile_name>', type=str, required=True, help="Profile name")
 @click.option('-a', metavar='<alpha>', type=click.IntRange(-8,8), help="Set alpha for profile type dynamic")
 @click.option('-s', metavar='<staticth>', type=click.IntRange(min=0), help="Set staticth for profile type static")
+@click.option('-t', type=click.Choice(["on", "off"]), help="Set packet trimming eligibility")
 @click.option('--verbose', '-vv', is_flag=True, help="Enable verbose output")
 @click.option('--namespace',
               '-n',
@@ -7465,12 +7475,14 @@ def ecn(profile, rmax, rmin, ymax, ymin, gmax, gmin, rdrop, ydrop, gdrop, verbos
               show_default=True,
               help='Namespace name or all',
               callback=multi_asic_util.multi_asic_namespace_validation_callback)
-def mmu(p, a, s, namespace, verbose):
+def mmu(p, a, s, t, namespace, verbose):
     """mmuconfig configuration tasks"""
     log.log_info("'mmuconfig -p {}' executing...".format(p))
     command = ['mmuconfig', '-p', str(p)]
     if a is not None: command += ['-a', str(a)]
     if s is not None: command += ['-s', str(s)]
+    if t is not None:
+        command += ['-t', str(t)]
     if namespace is not None:
         command += ['-n', str(namespace)]
     if verbose:
