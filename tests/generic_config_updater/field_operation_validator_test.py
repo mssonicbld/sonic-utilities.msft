@@ -264,6 +264,42 @@ class TestGetAsicName(unittest.TestCase):
     
     @patch('sonic_py_common.device_info.get_sonic_version_info')
     @patch('subprocess.Popen')
+    def test_get_asic_td4(self, mock_popen, mock_get_sonic_version_info):
+        mock_get_sonic_version_info.return_value = {'asic_type': 'broadcom'}
+        mock_popen.return_value = mock.Mock()
+        mock_popen.return_value.communicate.return_value = ["Nokia-IXR7220-D4-36D", 0]
+        for scope in ["localhost", "asic0"]:
+            self.assertEqual(fov.get_asic_name(), "td4")
+
+    @patch('sonic_py_common.device_info.get_sonic_version_info')
+    @patch('subprocess.Popen')
+    def test_get_asic_j2cplus(self, mock_popen, mock_get_sonic_version_info):
+        mock_get_sonic_version_info.return_value = {'asic_type': 'broadcom'}
+        mock_popen.return_value = mock.Mock()
+        mock_popen.return_value.communicate.return_value = ["Nokia-IXR7250E-36x100G", 0]
+        for scope in ["localhost", "asic0"]:
+            self.assertEqual(fov.get_asic_name(), "j2c+")
+
+    @patch('sonic_py_common.device_info.get_sonic_version_info')
+    @patch('subprocess.Popen')
+    def test_get_asic_jr2(self, mock_popen, mock_get_sonic_version_info):
+        mock_get_sonic_version_info.return_value = {'asic_type': 'broadcom'}
+        mock_popen.return_value = mock.Mock()
+        mock_popen.return_value.communicate.return_value = ["Arista-7800R3-48CQ2-C48", 0]
+        for scope in ["localhost", "asic0"]:
+            self.assertEqual(fov.get_asic_name(), "jr2")
+
+    @patch('sonic_py_common.device_info.get_sonic_version_info')
+    @patch('subprocess.Popen')
+    def test_get_asic_q2cplus(self, mock_popen, mock_get_sonic_version_info):
+        mock_get_sonic_version_info.return_value = {'asic_type': 'broadcom'}
+        mock_popen.return_value = mock.Mock()
+        mock_popen.return_value.communicate.return_value = ["Nokia-IXR7250-X1B", 0]
+        for scope in ["localhost", "asic0"]:
+            self.assertEqual(fov.get_asic_name(), "q2c+")
+
+    @patch('sonic_py_common.device_info.get_sonic_version_info')
+    @patch('subprocess.Popen')
     def test_get_asic_cisco(self, mock_popen, mock_get_sonic_version_info):
         mock_get_sonic_version_info.return_value = {'asic_type': 'cisco-8000'}
         self.assertEqual(fov.get_asic_name(), "cisco-8000")
