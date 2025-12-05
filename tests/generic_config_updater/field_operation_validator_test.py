@@ -327,3 +327,47 @@ class TestGetAsicName(unittest.TestCase):
     def test_get_asic_cisco(self, mock_popen, mock_get_sonic_version_info):
         mock_get_sonic_version_info.return_value = {'asic_type': 'cisco-8000'}
         self.assertEqual(fov.get_asic_name(), "cisco-8000")
+
+    def test_buffer_profile_config_update_validator_object_level_remove(self):
+        """Test that object-level remove operations are allowed (fixes rollback issue)"""
+        patch_element = {
+            "path": "/BUFFER_PROFILE/pg_lossless_40000_5m_profile",
+            "op": "remove"
+        }
+
+        # Object-level remove should be allowed without ASIC/version validation
+        assert fov.buffer_profile_config_update_validator(patch_element) is True
+
+    def test_buffer_profile_config_update_validator_object_level_add(self):
+        """Test that object-level add operations are allowed"""
+        patch_element = {
+            "path": "/BUFFER_PROFILE/new_profile",
+            "op": "add",
+            "value": {"size": "1024", "pool": "ingress_lossless_pool"}
+        }
+
+        # Object-level add should be allowed
+        assert fov.buffer_profile_config_update_validator(patch_element) is True
+
+    def test_buffer_profile_config_update_validator_object_level_unsupported_op(self):
+        """Test that unsupported operations on object-level are denied"""
+        patch_element = {
+            "path": "/BUFFER_PROFILE/my_profile",
+            "op": "move",  # Unsupported operation
+            "from": "/BUFFER_PROFILE/old_profile"
+        }
+
+        assert fov.buffer_profile_config_update_validator(patch_element) is False
+
+    def test_buffer_profile_config_update_validator_field_level_uses_existing_validation(self):
+        """Test that field-level operations use existing validation logic"""
+        patch_element = {
+            "path": "/BUFFER_PROFILE/my_profile/dynamic_th",
+            "op": "replace",
+            "value": "2"
+        }
+
+        # Mock the existing validation to return True
+        with patch("generic_config_updater.field_operation_validators.rdma_config_update_validator",
+                   return_value=True):
+            assert fov.buffer_profile_config_update_validator(patch_element) is True
