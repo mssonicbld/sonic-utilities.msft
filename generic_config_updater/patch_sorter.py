@@ -1075,7 +1075,8 @@ class KeyLevelMoveGenerator:
         for tokens in self._get_non_existing_keys_tokens(diff.current_config, diff.target_config):
             table = tokens[0]
             # if table has a single key, delete the whole table because empty tables are not allowed in ConfigDB
-            if len(diff.current_config[table]) == 1:
+            # BUT only if the table won't exist in target config (i.e., not adding new keys to it)
+            if len(diff.current_config[table]) == 1 and table not in diff.target_config:
                 yield JsonMove(diff, OperationType.REMOVE, [table])
             else:
                 yield JsonMove(diff, OperationType.REMOVE, tokens)
@@ -1477,6 +1478,18 @@ class UpperLevelMoveExtender:
             return
 
         upper_current_tokens = move.current_config_tokens[:-1]
+
+        # Don't extend key-level ADD/REPLACE operations to table-level when just adding/modifying keys within an existing table
+        # This prevents incorrectly replacing/removing entire tables when only adding/updating individual keys
+        # We still allow REMOVE operations to be extended to handle dependency cleanup properly
+        if len(upper_current_tokens) == 1:  # This would be a table-level operation
+            table = upper_current_tokens[0]
+            # If table exists in both current and target, don't extend ADD/REPLACE to table level
+            # The key-level operation is sufficient for additions/modifications
+            if table in diff.current_config and table in diff.target_config:
+                if move.op_type in [OperationType.ADD, OperationType.REPLACE]:
+                    return
+
         operation_type = self._get_upper_operation(upper_current_tokens, diff)
 
         upper_target_tokens = None
