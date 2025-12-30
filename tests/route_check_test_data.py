@@ -10,6 +10,7 @@ APPL_STATE_DB = 14
 PRE = "pre-value"
 UPD = "update"
 FRR_ROUTES = "frr-routes"
+FRR_FAILED_ROUTES = "frr-failed-routes"
 RESULT = "res"
 DEFAULTNS=""
 ASIC0 = "asic0"
@@ -969,6 +970,334 @@ TEST_DATA = {
                     },
                 ],
             },
+        },
+    },
+    "24": {
+        DESCR: "single-asic with failed FRR routes",
+        MULTI_ASIC: False,
+        NAMESPACE: [''],
+        ARGS: "route_check -m INFO -i 1000",
+        RET: -1,
+        PRE: {
+            DEFAULTNS: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+        },
+        FRR_FAILED_ROUTES: {
+            DEFAULTNS: {
+                "10.10.196.100/31": [
+                    {
+                        "prefix": "10.10.196.100/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ],
+            }
+        },
+        RESULT: {
+            DEFAULTNS: {
+                "failed_FRR_routes": [
+                    {
+                        "prefix": "10.10.196.100/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ]
+            }
+        }
+    },
+    "25": {
+        DESCR: "multi-asic with failed FRR routes on one asic",
+        MULTI_ASIC: True,
+        NAMESPACE: ['asic0', 'asic1'],
+        ARGS: "route_check -m INFO -i 1000",
+        RET: -1,
+        PRE: {
+            ASIC0: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+            ASIC1: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+        },
+        FRR_FAILED_ROUTES: {
+            ASIC0: {
+                "10.10.196.200/31": [
+                    {
+                        "prefix": "10.10.196.200/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ],
+            },
+            ASIC1: {}
+        },
+        RESULT: {
+            ASIC0: {
+                "failed_FRR_routes": [
+                    {
+                        "prefix": "10.10.196.200/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ]
+            }
+        }
+    },
+    "26": {
+        DESCR: "multi-asic with failed FRR routes on specific asic",
+        MULTI_ASIC: True,
+        NAMESPACE: ['asic0', 'asic1'],
+        ARGS: "route_check -n asic1 -m INFO -i 1000",
+        RET: -1,
+        PRE: {
+            ASIC1: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+        },
+        FRR_FAILED_ROUTES: {
+            ASIC1: {
+                "10.10.196.201/31": [
+                    {
+                        "prefix": "10.10.196.201/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ],
+            }
+        },
+        RESULT: {
+            ASIC1: {
+                "failed_FRR_routes": [
+                    {
+                        "prefix": "10.10.196.201/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ]
+            }
+        }
+    },
+    "27": {
+        DESCR: "single-asic skip failed routes check for non-selected routes",
+        MULTI_ASIC: False,
+        NAMESPACE: [''],
+        ARGS: "route_check -m INFO -i 1000",
+        PRE: {
+            DEFAULTNS: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+        },
+        FRR_FAILED_ROUTES: {
+            DEFAULTNS: {
+                "10.10.196.100/31": [
+                    {
+                        "prefix": "10.10.196.100/31",
+                        "vrfName": "default",
+                        "protocol": "bgp",
+                        "selected": False,
+                        "failed": True,
+                    },
+                ],
+            }
+        },
+    },
+    "28": {
+        DESCR: "single-asic skip failed routes check for non-default VRF",
+        MULTI_ASIC: False,
+        NAMESPACE: [''],
+        ARGS: "route_check -m INFO -i 1000",
+        PRE: {
+            DEFAULTNS: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+        },
+        FRR_FAILED_ROUTES: {
+            DEFAULTNS: {
+                "10.10.196.100/31": [
+                    {
+                        "prefix": "10.10.196.100/31",
+                        "vrfName": "Vrf1",
+                        "protocol": "bgp",
+                        "selected": True,
+                        "failed": True,
+                    },
+                ],
+            }
+        },
+    },
+    "29": {
+        DESCR: "multi-asic with empty failed routes (namespace prefix stripped)",
+        MULTI_ASIC: True,
+        NAMESPACE: ['asic0', 'asic1'],
+        ARGS: "route_check -m INFO -i 1000",
+        PRE: {
+            ASIC0: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+            ASIC1: {
+                APPL_DB: {
+                    ROUTE_TABLE: {
+                        "0.0.0.0/0" : { "ifname": "portchannel0" },
+                        "10.10.196.12/31" : { "ifname": "portchannel0" },
+                    },
+                    INTF_TABLE: {
+                        "PortChannel1013:10.10.196.24/31": {},
+                        "PortChannel1023:2603:10b0:503:df4::5d/126": {},
+                        "PortChannel1024": {}
+                    }
+                },
+                ASIC_DB: {
+                    RT_ENTRY_TABLE: {
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.12/31" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "10.10.196.24/32" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "2603:10b0:503:df4::5d/128" + RT_ENTRY_KEY_SUFFIX: {},
+                        RT_ENTRY_KEY_PREFIX + "0.0.0.0/0" + RT_ENTRY_KEY_SUFFIX: {}
+                    }
+                },
+            },
+        },
+        FRR_FAILED_ROUTES: {
+            ASIC0: {},
+            ASIC1: {}
         },
     },
 }

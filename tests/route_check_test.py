@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 from tests.route_check_test_data import (
     APPL_DB, MULTI_ASIC, NAMESPACE, DEFAULTNS, ARGS, ASIC_DB, CONFIG_DB,
     DEFAULT_CONFIG_DB, APPL_STATE_DB, DESCR, OP_DEL, OP_SET, PRE, RESULT, RET, TEST_DATA,
-    UPD, FRR_ROUTES
+    UPD, FRR_ROUTES, FRR_FAILED_ROUTES
 )
 
 import pytest
@@ -252,8 +252,13 @@ class TestRouteCheck(object):
 
     def mock_check_output(self, ct_data, *args, **kwargs):
         ns = self.extract_namespace_from_args(args[0])
-        if 'show runningconfiguration bgp' in ' '.join(args[0]):
+        cmd_str = ' '.join(args[0])
+        if 'show runningconfiguration bgp' in cmd_str:
             return 'bgp suppress-fib-pending'
+        elif 'failed' in cmd_str:
+            # Return failed routes for 'show ip route json failed' command
+            routes = ct_data.get(FRR_FAILED_ROUTES, {}).get(ns, {})
+            return json.dumps(routes)
         else:
             routes = ct_data.get(FRR_ROUTES, {}).get(ns, {})
             return json.dumps(routes)
