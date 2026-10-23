@@ -21,7 +21,7 @@ from jsonpatch import JsonPatchConflict
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONSOLE_MOCK_DIR = SCRIPT_DIR + "/console_mock"
-
+CONSOLE_LOGGING_CMD = config.config.commands["console"].commands["logging"]
 
 class TestConfigConsoleCommands(object):
     @classmethod
@@ -698,6 +698,209 @@ class TestConfigConsoleCommands(object):
         result = runner.invoke(config.config.commands["console"].commands["flow_control"], ["enable", "1"], obj=db)
         print(result.exit_code)
         print(sys.stderr, result.output)
+        assert "Invalid ConfigDB. Error" in result.output
+
+    def test_update_console_logging_non_exists(self):
+        runner = CliRunner()
+        db = Db()
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "enable"],
+            obj=db,
+        )
+        assert result.exit_code != 0
+        assert "Trying to update console port setting, which is not present." in result.output
+
+    def test_update_console_logging_filename_success(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {"baud_rate": "9600"})
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "filename", "/var/log/console1.log", "--logrotate-size", "10M", "--logrotate-count", "5"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("log_file") == "/var/log/console1.log"
+        assert entry.get("logrotate_size") == "10M"
+        assert entry.get("logrotate_count") == "5"
+        assert entry.get("baud_rate") == "9600"
+
+    def test_update_console_logging_filename_defaults(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {"baud_rate": "9600"})
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "filename", "/var/log/console1.log"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("log_file") == "/var/log/console1.log"
+        assert entry.get("logrotate_size") == "10M"
+        assert entry.get("logrotate_count") == "10"
+
+    @pytest.mark.parametrize("logrotate_size", ["big", "10m", "10g"])
+    def test_update_console_logging_filename_invalid_size(self, logrotate_size):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {"baud_rate": "9600"})
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "filename", "/var/log/console1.log", "--logrotate-size", logrotate_size, "--logrotate-count", "5"],
+            obj=db,
+        )
+        assert result.exit_code != 0
+        assert "Invalid logrotate size" in result.output
+
+    @pytest.mark.parametrize(("filename", "error_message"), [
+        ("var/log/console1.log", "Log file path must be an absolute path."),
+        ("/var/log/console 1.log", "Log file path must not contain whitespace."),
+        ("/var/log/console1.log\npostrotate", "Log file path must not contain whitespace."),
+        ("/var/log/{console}.log", "Log file path must not contain '{' or '}'."),
+        ("/var/log/console1.log}postrotate{", "Log file path must not contain '{' or '}'."),
+    ])
+    def test_update_console_logging_filename_invalid_path(self, filename, error_message):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {"baud_rate": "9600"})
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "filename", filename],
+            obj=db,
+        )
+        assert result.exit_code != 0
+        assert error_message in result.output
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert "log_file" not in entry
+
+    def test_update_console_logging_filename_partial_logrotate_options(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {"baud_rate": "9600"})
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "filename", "/var/log/console1.log", "--logrotate-size", "10M"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("log_file") == "/var/log/console1.log"
+        assert entry.get("logrotate_size") == "10M"
+        assert entry.get("logrotate_count") == "10"
+
+    def test_update_console_logging_enable_applies_defaults(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {"baud_rate": "9600"})
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "enable"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("logging_enabled") == "yes"
+        assert entry.get("log_file") == "/var/log/console-1.log"
+        assert entry.get("logrotate_size") == "10M"
+        assert entry.get("logrotate_count") == "10"
+
+    def test_update_console_logging_enable_success(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {
+            "baud_rate": "9600",
+            "log_file": "/var/log/console1.log",
+            "logrotate_size": "10M",
+            "logrotate_count": "5",
+        })
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "enable"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("logging_enabled") == "yes"
+        assert entry.get("log_file") == "/var/log/console1.log"
+
+    def test_update_console_logging_disable_success(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {
+            "baud_rate": "9600",
+            "logging_enabled": "yes",
+            "log_file": "/var/log/console1.log",
+            "logrotate_size": "10M",
+            "logrotate_count": "5",
+        })
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "disable"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("logging_enabled") == "no"
+        assert entry.get("log_file") == "/var/log/console1.log"
+
+    def test_update_console_logging_enable_no_change(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {
+            "baud_rate": "9600",
+            "logging_enabled": "yes",
+            "log_file": "/var/log/console1.log",
+            "logrotate_size": "10M",
+            "logrotate_count": "5",
+        })
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "enable"],
+            obj=db,
+        )
+        assert result.exit_code == 0
+
+        entry = db.cfgdb.get_entry("CONSOLE_PORT", "1")
+        assert entry.get("logging_enabled") == "yes"
+
+    @patch("validated_config_db_connector.device_info.is_yang_config_validation_enabled", mock.Mock(return_value=True))
+    @patch("config.validated_config_db_connector.ValidatedConfigDBConnector.validated_mod_entry",
+           mock.Mock(side_effect=ValueError))
+    def test_update_console_logging_enable_yang_validation(self):
+        runner = CliRunner()
+        db = Db()
+        db.cfgdb.set_entry("CONSOLE_PORT", "1", {
+            "baud_rate": "9600",
+            "log_file": "/var/log/console1.log",
+            "logrotate_size": "10M",
+            "logrotate_count": "5",
+        })
+
+        result = runner.invoke(
+            CONSOLE_LOGGING_CMD,
+            ["1", "enable"],
+            obj=db,
+        )
         assert "Invalid ConfigDB. Error" in result.output
 
     def test_console_full_workflow_integration(self):
